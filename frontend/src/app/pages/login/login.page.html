@@ -1,12 +1,6 @@
 <ion-header>
   <ion-toolbar>
     <ion-title>{{ 'app.title' | t }}</ion-title>
-    <ion-buttons slot="end">
-      <ion-button (click)="i18n.toggleLanguage()" [title]="'common.language' | t">
-        <ion-icon slot="start" name="language-outline" />
-        {{ i18n.otherLanguage().toUpperCase() }}
-      </ion-button>
-    </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
@@ -75,4 +69,6 @@
       </ion-button>
     </form>
   </div>
+
+  <app-language-switch />
 </ion-content>

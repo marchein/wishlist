@@ -2,7 +2,6 @@ import { Component, inject, input, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   IonButton,
-  IonButtons,
   IonContent,
   IonHeader,
   IonIcon,
@@ -16,6 +15,7 @@ import {
   IonToolbar,
   NavController,
 } from '@ionic/angular';
+import { LanguageSwitchComponent } from '../../components/language-switch.component';
 import { AuthService } from '../../core/auth.service';
 import { I18nService, TranslatePipe } from '../../core/i18n/i18n';
 import { NotifyService } from '../../core/ui';
@@ -27,10 +27,10 @@ import { NotifyService } from '../../core/ui';
   imports: [
     ReactiveFormsModule,
     TranslatePipe,
+    LanguageSwitchComponent,
     IonHeader,
     IonToolbar,
     IonTitle,
-    IonButtons,
     IonContent,
     IonSegment,
     IonSegmentButton,
@@ -46,7 +46,7 @@ export class LoginPage {
   private readonly auth = inject(AuthService);
   private readonly nav = inject(NavController);
   private readonly notify = inject(NotifyService);
-  protected readonly i18n = inject(I18nService);
+  private readonly i18n = inject(I18nService);
 
   readonly returnUrl = input<string>();
   readonly mode = signal<'login' | 'register'>('login');

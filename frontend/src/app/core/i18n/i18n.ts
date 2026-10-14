@@ -41,7 +41,6 @@ export class I18nService {
     const language = this.language();
     return browserLanguages().find((tag) => tag?.toLowerCase().startsWith(language)) ?? DEFAULT_LOCALE[language];
   });
-  readonly otherLanguage = computed<Language>(() => (this.language() === 'de' ? 'en' : 'de'));
 
   constructor() {
     effect(() => {
@@ -53,10 +52,6 @@ export class I18nService {
   setLanguage(language: Language): void {
     localStorage.setItem(STORAGE_KEY, language);
     this.language.set(language);
-  }
-
-  toggleLanguage(): void {
-    this.setLanguage(this.otherLanguage());
   }
 
   t(key: TranslationKey, params?: TranslationParams): string {

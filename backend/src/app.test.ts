@@ -162,6 +162,32 @@ describe('wishlist API', () => {
     assert.equal(markOwn.body.code, 'OWN_WISHLIST');
   });
 
+  it('renders escaped link preview tags without purchase data', async () => {
+    await api(`/wishlists/${wishlistId}`, { method: 'PATCH', token: ownerToken, body: { title: 'Christmas <2026>' } });
+    await api(`/wishlists/${wishlistId}/items`, {
+      token: ownerToken,
+      body: { title: 'Book', priority: 5, imageUrl: '/uploads/123e4567-e89b-12d3-a456-426614174000.png' },
+    });
+
+    const german = await fetch(`${base}/api/shared/${shareToken}/preview`);
+    assert.match(german.headers.get('content-type') ?? '', /text\/html/);
+    const html = await german.text();
+    assert.match(html, /<meta property="og:title" content="Christmas &lt;2026&gt; – Wunschliste von Olivia">/);
+    assert.match(html, /<meta property="og:description" content="2 Wünsche">/);
+    assert.match(html, /<meta property="og:image" content="http:\/\/127\.0\.0\.1:\d+\/uploads\/123e4567-[^"]+\.png">/);
+    assert.match(html, /<meta name="robots" content="noindex, nofollow">/);
+    assert.doesNotMatch(html, /Grandma|Fred|bought|gekauft/i);
+
+    const english = await fetch(`${base}/api/shared/${shareToken}/preview`, {
+      headers: { 'accept-language': 'en-GB,en;q=0.9' },
+    });
+    assert.match(await english.text(), /Olivia&#39;s wishlist/);
+
+    const missing = await fetch(`${base}/api/shared/does-not-exist/preview`);
+    assert.equal(missing.status, 200);
+    assert.match(await missing.text(), /Wunschliste nicht gefunden/);
+  });
+
   it('invalidates the old link when the share token is regenerated', async () => {
     const regenerated = await api(`/wishlists/${wishlistId}/share-token`, { method: 'POST', token: ownerToken });
     assert.notEqual(regenerated.body.shareToken, shareToken);

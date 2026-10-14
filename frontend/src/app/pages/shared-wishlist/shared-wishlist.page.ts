@@ -31,6 +31,7 @@ import {
   type RefresherCustomEvent,
   type ViewWillEnter,
 } from '@ionic/angular';
+import { LanguageSwitchComponent } from '../../components/language-switch.component';
 import { PriorityStarsComponent } from '../../components/priority-stars.component';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
@@ -55,6 +56,7 @@ type Filter = 'all' | 'open' | 'bought';
     HostnamePipe,
     PricePipe,
     PriorityStarsComponent,
+    LanguageSwitchComponent,
     IonHeader,
     IonToolbar,
     IonTitle,
@@ -87,7 +89,7 @@ export class SharedWishlistPage implements ViewWillEnter {
   private readonly alerts = inject(AlertController);
   private readonly notify = inject(NotifyService);
   protected readonly auth = inject(AuthService);
-  protected readonly i18n = inject(I18nService);
+  private readonly i18n = inject(I18nService);
 
   /** Bound from the :token route parameter. */
   readonly token = input.required<string>();

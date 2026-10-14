@@ -33,18 +33,21 @@ In development a JWT secret is generated into `backend/data/`, together with the
   (partially, for quantities > 1) or undo it. Every purchase and undo is kept with name and time, and undos by
   someone other than the buyer are highlighted.
 - The owner's API responses never contain purchase data, even when opening their own share link.
+- Share links show a rich preview in messengers: the web container injects list-specific Open Graph tags
+  (title, owner, number of wishes, a picture) into the page for `/s/<token>` – never anything about purchases.
 
 ## Deployment with Docker
 
 The app runs as a stack of two containers defined in [docker-compose.yml](docker-compose.yml):
 
-| Service | Image                 | Purpose                                                                     |
-| ------- | --------------------- | --------------------------------------------------------------------------- |
-| `api`   | `<image>-api`         | Node backend; SQLite database and uploads live in the `data` volume          |
-| `web`   | `<image>-web`         | nginx serving the app and proxying `/api` and `/uploads` to `api` (port 8080) |
+| Service | Image                          | Purpose                                                                       |
+| ------- | ------------------------------ | ----------------------------------------------------------------------------- |
+| `api`   | `ghcr.io/marchein/wishlist-api` | Node backend; SQLite database and uploads live in the `data` volume           |
+| `web`   | `ghcr.io/marchein/wishlist-web` | nginx serving the app and proxying `/api` and `/uploads` to `api` (port 8080) |
 
-Only `web` is published to the host. All configuration lives in **one `.env` file** next to
-`docker-compose.yml` – copy [.env.example](.env.example) and fill it in:
+`docker-compose.yml` uses the `latest` tag of both images, i.e. always the newest release. Only `web` is
+published to the host. All other configuration lives in **one `.env` file** next to `docker-compose.yml` – copy
+[.env.example](.env.example) and fill it in:
 
 ```bash
 cp .env.example .env
@@ -53,9 +56,8 @@ openssl rand -base64 48   # paste the output as JWT_SECRET
 
 | Variable                  | Meaning                                                                                        |
 | ------------------------- | ---------------------------------------------------------------------------------------------- |
-| `WISHLIST_IMAGE`          | Image path without suffix, e.g. `ghcr.io/<github-user>/wishlist` (lower case)                  |
-| `WISHLIST_VERSION`        | Image tag to run: `1.2.0`, `1.2` or `latest`                                                   |
 | `WISHLIST_PORT`           | Host port, e.g. `8080`, or `127.0.0.1:8080` if a reverse proxy on the same host does HTTPS     |
+| `PUBLIC_URL`              | Public address, e.g. `https://wishlist.example.com` – used for link previews in messengers     |
 | `JWT_SECRET`              | **Required**, ≥ 32 characters. Changing it logs everybody out                                  |
 | `TRUST_PROXY`             | `1` = only the web container in front of the API, `2` = plus your HTTPS reverse proxy          |
 | `CORS_ORIGINS`            | Extra origins allowed to call the API (only needed for a native app later)                     |
@@ -64,7 +66,7 @@ openssl rand -base64 48   # paste the output as JWT_SECRET
 ### Build and run locally
 
 ```bash
-docker compose build          # builds <WISHLIST_IMAGE>-api and -web, tagged WISHLIST_VERSION
+docker compose build          # builds the images locally (tagged :latest)
 docker compose up -d          # http://localhost:8080 (or whatever WISHLIST_PORT says)
 docker compose logs -f
 docker compose down           # stops the stack; data stays in the "wishlist_data" volume
@@ -76,39 +78,28 @@ docker compose down           # stops the stack; data stays in the "wishlist_dat
 `linux/amd64` and `linux/arm64` whenever a version tag is pushed. Images go to the GitHub Container Registry
 (no secrets to set up – the workflow uses the built-in `GITHUB_TOKEN`).
 
-One-time setup – create an empty repository `wishlist` on GitHub, then:
-
-```bash
-git init
-git add .
-git commit -m "Initial version"
-git branch -M main
-git remote add origin git@github.com:<github-user>/wishlist.git
-git push -u origin main
-```
-
 Release a version by tagging it ([semantic versioning](https://semver.org): `vMAJOR.MINOR.PATCH`):
 
 ```bash
-git tag -a v1.0.0 -m "First release"
-git push origin v1.0.0
+git tag -a v1.1.0 -m "Release 1.1.0"
+git push origin v1.1.0
 ```
 
 The workflow (see the repository's *Actions* tab) then publishes
 
 ```
-ghcr.io/<github-user>/wishlist-api:1.0.0  :1.0  :1  :latest  :sha-<commit>
-ghcr.io/<github-user>/wishlist-web:1.0.0  :1.0  :1  :latest  :sha-<commit>
+ghcr.io/marchein/wishlist-api:1.1.0  :1.1  :1  :latest  :sha-<commit>
+ghcr.io/marchein/wishlist-web:1.1.0  :1.1  :1  :latest  :sha-<commit>
 ```
 
-New packages are **private**. Either make them public (GitHub → your profile → *Packages* → package →
-*Package settings* → *Change visibility*) or log in on the server as shown below.
+New packages are **private**. Either make them public ([your packages](https://github.com/marchein?tab=packages)
+→ package → *Package settings* → *Change visibility*) or log in on the server as shown below.
 
 <details>
 <summary>Building and pushing without GitHub Actions</summary>
 
 ```bash
-echo <token> | docker login ghcr.io -u <github-user> --password-stdin   # classic PAT with write:packages
+echo <token> | docker login ghcr.io -u marchein --password-stdin   # classic PAT with write:packages
 # On Apple Silicon, build for a typical x86 server:
 DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose build
 docker compose push
@@ -122,15 +113,12 @@ Requirements: Docker Engine with the Compose plugin. The server only needs `dock
 no source code.
 
 ```bash
-# on your machine
-ssh <user>@<server> mkdir -p ~/wishlist
-scp docker-compose.yml .env.example <user>@<server>:~/wishlist/
-
-# on the server
-cd ~/wishlist
-cp .env.example .env && nano .env        # WISHLIST_IMAGE, WISHLIST_VERSION, JWT_SECRET, …
+mkdir -p ~/wishlist && cd ~/wishlist
+curl -fsSLO https://raw.githubusercontent.com/marchein/wishlist/main/docker-compose.yml
+curl -fsSL -o .env https://raw.githubusercontent.com/marchein/wishlist/main/.env.example
+nano .env                                 # PUBLIC_URL, JWT_SECRET, …
 # only for private packages: classic personal access token with the read:packages scope
-echo <token> | docker login ghcr.io -u <github-user> --password-stdin
+echo <token> | docker login ghcr.io -u marchein --password-stdin
 docker compose pull
 docker compose up -d --no-build
 docker compose ps                         # both services should become "healthy"
@@ -146,11 +134,14 @@ wishlist.example.com {
 }
 ```
 
-**Update / rollback:** set `WISHLIST_VERSION` to the new (or previous) version in `.env`, then
+**Update** to the newest release:
 
 ```bash
 docker compose pull && docker compose up -d --no-build && docker image prune -f
 ```
+
+**Rollback / pin a version:** replace `:latest` with e.g. `:1.0.0` in both `image:` lines of
+`docker-compose.yml` and run the same command. Switch back to `:latest` to follow new releases again.
 
 **Backup:** everything (database, uploads, nothing else) lives in the `wishlist_data` volume:
 

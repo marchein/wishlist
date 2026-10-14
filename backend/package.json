@@ -10,7 +10,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "test": "tsx --test \"src/**/*.test.ts\"",
+    "test": "JWT_SECRET=test-only-secret-that-is-long-enough-123 UPLOAD_DIR=${TMPDIR:-/tmp}/wishlist-test-uploads tsx --test \"src/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

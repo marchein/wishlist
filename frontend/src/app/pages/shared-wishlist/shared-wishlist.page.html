@@ -2,18 +2,18 @@
   <ion-toolbar>
     <ion-title>{{ data()?.wishlist?.title ?? ('app.title' | t) }}</ion-title>
     <ion-buttons slot="end">
-      <ion-button (click)="i18n.toggleLanguage()" [title]="'common.language' | t">
-        <ion-icon slot="start" name="language-outline" />
-        {{ i18n.otherLanguage().toUpperCase() }}
-      </ion-button>
       @if (auth.isLoggedIn()) {
-        <ion-button routerLink="/wishlists" [title]="'wishlists.title' | t">
+        <ion-button routerLink="/wishlists" [title]="'wishlists.title' | t" [attr.aria-label]="'wishlists.title' | t">
           <ion-icon slot="icon-only" name="gift-outline" />
         </ion-button>
       } @else {
-        <ion-button [routerLink]="['/login']" [queryParams]="{ returnUrl: '/s/' + token() }">
-          <ion-icon slot="start" name="log-in-outline" />
-          {{ 'common.login' | t }}
+        <ion-button
+          [routerLink]="['/login']"
+          [queryParams]="{ returnUrl: '/s/' + token() }"
+          [title]="'common.login' | t"
+          [attr.aria-label]="'common.login' | t"
+        >
+          <ion-icon slot="icon-only" name="log-in-outline" />
         </ion-button>
       }
     </ion-buttons>
@@ -180,4 +180,6 @@
   } @else {
     <div class="ion-padding ion-text-center"><ion-spinner /></div>
   }
+
+  <app-language-switch />
 </ion-content>

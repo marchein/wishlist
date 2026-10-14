@@ -45,5 +45,7 @@ export const config = {
     .map((origin) => origin.trim())
     .filter(Boolean),
   trustProxy: parseTrustProxy(env.TRUST_PROXY),
+  /** Public origin used for absolute URLs in link previews; derived from the request when unset. */
+  publicUrl: env.PUBLIC_URL?.trim().replace(/\/+$/, '') || undefined,
   scraperAcceptLanguage: env.SCRAPER_ACCEPT_LANGUAGE ?? 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
 } as const;

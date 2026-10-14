@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Router, type Request } from 'express';
 import { optionalAuth } from '../auth.js';
+import { config } from '../config.js';
 import type { DB } from '../db.js';
 import { HttpError, notFound } from '../errors.js';
 import {
@@ -12,6 +13,7 @@ import {
   type PurchaseRow,
   type WishlistRow,
 } from '../models.js';
+import { previewLanguage, renderPreviewTags } from '../preview.js';
 import { purchaseSchema, revertSchema } from '../validation.js';
 
 /**
@@ -60,6 +62,49 @@ export function sharedRouter(db: DB): Router {
     ...toItemDto(item),
     purchasedQuantity: activePurchasedQuantity(purchases),
     purchases: purchases.map((p) => toPurchaseDto(p, viewerId)),
+  });
+
+  // HTML <meta> fragment that the web server injects into the app's index.html for /s/<token>.
+  // Deliberately contains nothing about purchases: the owner may share the link themselves.
+  router.get('/:token/preview', (req, res) => {
+    const row = db
+      .prepare(
+        `SELECT w.title, w.description, w.event_date, u.display_name AS owner_name,
+                (SELECT COUNT(*) FROM items i WHERE i.wishlist_id = w.id) AS item_count,
+                (SELECT i.image_url FROM items i WHERE i.wishlist_id = w.id AND i.image_url IS NOT NULL
+                 ORDER BY i.priority DESC, i.created_at DESC LIMIT 1) AS image_url
+         FROM wishlists w JOIN users u ON u.id = w.owner_id WHERE w.share_token = ?`,
+      )
+      .get(req.params.token) as
+      | {
+          title: string;
+          description: string | null;
+          event_date: string | null;
+          owner_name: string;
+          item_count: number;
+          image_url: string | null;
+        }
+      | undefined;
+
+    const origin = config.publicUrl ?? `${req.protocol}://${req.get('host')}`;
+    res
+      .type('html')
+      .set('Cache-Control', 'no-store')
+      .send(
+        renderPreviewTags({
+          language: previewLanguage(req.get('accept-language')),
+          origin,
+          pageUrl: `${origin}/s/${encodeURIComponent(req.params.token)}`,
+          wishlist: row && {
+            title: row.title,
+            description: row.description,
+            eventDate: row.event_date,
+            ownerName: row.owner_name,
+            itemCount: row.item_count,
+            imageUrl: row.image_url,
+          },
+        }),
+      );
   });
 
   router.get('/:token', (req, res) => {

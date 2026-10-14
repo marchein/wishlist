@@ -2,11 +2,7 @@
   <ion-toolbar>
     <ion-title>{{ 'wishlists.title' | t }}</ion-title>
     <ion-buttons slot="end">
-      <ion-button (click)="i18n.toggleLanguage()" [title]="'common.language' | t">
-        <ion-icon slot="start" name="language-outline" />
-        {{ i18n.otherLanguage().toUpperCase() }}
-      </ion-button>
-      <ion-button (click)="logout()" [title]="'common.logout' | t">
+      <ion-button (click)="logout()" [title]="'common.logout' | t" [attr.aria-label]="'common.logout' | t">
         <ion-icon slot="icon-only" name="log-out-outline" />
       </ion-button>
     </ion-buttons>
@@ -48,6 +44,8 @@
       }
     </ion-list>
   }
+
+  <app-language-switch />
 
   <ion-fab slot="fixed" vertical="bottom" horizontal="end">
     <ion-fab-button (click)="create()" [title]="'wishlists.new' | t">

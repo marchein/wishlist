@@ -23,6 +23,7 @@ import {
   type ViewWillEnter,
 } from '@ionic/angular';
 import { ApiService } from '../../core/api.service';
+import { LanguageSwitchComponent } from '../../components/language-switch.component';
 import { AuthService } from '../../core/auth.service';
 import { I18nService, LocalDatePipe, TranslatePipe } from '../../core/i18n/i18n';
 import type { Wishlist } from '../../core/models';
@@ -33,6 +34,7 @@ import { NotifyService } from '../../core/ui';
   templateUrl: 'wishlists.page.html',
   styleUrls: ['wishlists.page.scss'],
   imports: [
+    LanguageSwitchComponent,
     LocalDatePipe,
     TranslatePipe,
     RouterLink,
@@ -60,7 +62,7 @@ export class WishlistsPage implements ViewWillEnter {
   private readonly nav = inject(NavController);
   private readonly notify = inject(NotifyService);
   protected readonly auth = inject(AuthService);
-  protected readonly i18n = inject(I18nService);
+  private readonly i18n = inject(I18nService);
 
   readonly wishlists = signal<Wishlist[]>([]);
   readonly loading = signal(true);
