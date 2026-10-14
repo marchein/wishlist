@@ -2,7 +2,7 @@
 export type TranslationValue = string | { one: string; other: string };
 
 export const en = {
-  'app.title': 'Wishlist',
+  'app.title': 'WhateverWishlist',
 
   'common.back': 'Back',
   'common.cancel': 'Cancel',

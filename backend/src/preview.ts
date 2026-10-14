@@ -13,7 +13,7 @@ export interface PreviewWishlist {
 
 const TEXT = {
   de: {
-    siteName: 'Wunschliste',
+    siteName: 'WhateverWishlist',
     title: (list: string, owner: string) => `${list} – Wunschliste von ${owner}`,
     wishes: (count: number) => (count === 1 ? '1 Wunsch' : `${count} Wünsche`),
     notFound: 'Wunschliste nicht gefunden',
@@ -21,7 +21,7 @@ const TEXT = {
     ogLocale: 'de_DE',
   },
   en: {
-    siteName: 'Wishlist',
+    siteName: 'WhateverWishlist',
     title: (list: string, owner: string) => `${list} – ${owner}'s wishlist`,
     wishes: (count: number) => (count === 1 ? '1 wish' : `${count} wishes`),
     notFound: 'Wishlist not found',

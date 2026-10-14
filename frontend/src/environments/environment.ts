@@ -6,6 +6,8 @@ export const environment = {
   production: false,
   /** Origin of the backend; API calls go to `${apiBaseUrl}/api`, uploads to `${apiBaseUrl}/uploads`. */
   apiBaseUrl: 'http://localhost:3000',
+  /** Origin used for share links; empty = the current page's origin. */
+  webBaseUrl: '',
 };
 
 /*

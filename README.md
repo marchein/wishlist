@@ -5,8 +5,9 @@ Friends and family open the share link, see what's still needed and mark things 
 the owner never sees what was bought.
 
 ```
-backend/   Node + Express 5 + SQLite (better-sqlite3) REST API, TypeScript
-frontend/  Ionic 9 + Angular 22 (standalone, zoneless), Capacitor-ready
+backend/       Node + Express 5 + SQLite (better-sqlite3) REST API, TypeScript
+frontend/      Ionic 9 + Angular 22 (standalone, zoneless) web app
+frontend/ios/  The same app as native iOS app (Capacitor), talking to https://wishlist.hein.cx
 ```
 
 ## Getting started
@@ -60,7 +61,8 @@ openssl rand -base64 48   # paste the output as JWT_SECRET
 | `PUBLIC_URL`              | Public address, e.g. `https://wishlist.example.com` – used for link previews in messengers     |
 | `JWT_SECRET`              | **Required**, ≥ 32 characters. Changing it logs everybody out                                  |
 | `TRUST_PROXY`             | `1` = only the web container in front of the API, `2` = plus your HTTPS reverse proxy          |
-| `CORS_ORIGINS`            | Extra origins allowed to call the API (only needed for a native app later)                     |
+| `CORS_ORIGINS`            | Other origins allowed to call the API – `capacitor://localhost` for the iOS app                |
+| `IOS_APP_IDS`             | `<Team ID>.<bundle id>` of the iOS app that opens share links (`UJR28ZV94C.cx.hein.wishlist`)  |
 | `SCRAPER_ACCEPT_LANGUAGE` | Language requested from shops when reading product pages                                       |
 
 ### Build and run locally
@@ -153,7 +155,35 @@ docker compose start api
 
 Restore by extracting such an archive into the (empty) volume the same way with `tar xzf`.
 
-### Native app later
+### iOS app
 
-Set `apiBaseUrl` in `frontend/src/environments/environment.prod.ts` to the absolute public URL and add
-`capacitor://localhost,http://localhost` to `CORS_ORIGINS`.
+[frontend/ios](frontend/ios) is a native Xcode project (Capacitor, bundle id `cx.hein.wishlist`) that wraps the
+same Ionic app. In the app, API calls and share links use `https://wishlist.hein.cx`
+(see [environment.prod.ts](frontend/src/environments/environment.prod.ts)).
+
+**Server:** the app runs as origin `capacitor://localhost`, so the server's `.env` needs
+`CORS_ORIGINS=capacitor://localhost` (then `docker compose up -d --no-build`).
+
+**Share links open the app** (Universal Links): with the app installed, tapping `https://wishlist.hein.cx/s/…`
+(e.g. in WhatsApp) opens the list in the app instead of Safari. This needs
+
+- `IOS_APP_IDS=UJR28ZV94C.cx.hein.wishlist` in the server's `.env` – the server then publishes
+  `https://wishlist.hein.cx/.well-known/apple-app-site-association`;
+- the *Associated Domains* entitlement `applinks:wishlist.hein.cx`, already set in
+  [App.entitlements](frontend/ios/App/App/App.entitlements) (requires a paid Apple Developer account).
+
+iOS fetches the association file via Apple's CDN when the app is installed, so after changing it reinstall the
+app (the CDN can take a while to refresh). Check what Apple sees with
+`curl https://app-site-association.cdn-apple.com/a/v1/wishlist.hein.cx`.
+
+**Build and run** (requires Xcode):
+
+```bash
+cd frontend
+npm run ios        # production build → copy into the Xcode project → open Xcode
+npm run ios:sync   # after web code changes: rebuild and copy, then press Run in Xcode again
+```
+
+In Xcode select your team under *Signing & Capabilities*, pick a simulator or your iPhone and press Run.
+For TestFlight / the App Store use *Product → Archive* (needs an Apple Developer account). The app version is
+set in Xcode (*General → Version*), the icon in `ios/App/App/Assets.xcassets/AppIcon.appiconset`.

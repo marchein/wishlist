@@ -1,7 +1,7 @@
 import type { Translations } from './en';
 
 export const de: Translations = {
-  'app.title': 'Wunschliste',
+  'app.title': 'WhateverWishlist',
 
   'common.back': 'Zurück',
   'common.cancel': 'Abbrechen',

@@ -24,6 +24,9 @@ import {
   NavController,
   type ViewWillEnter,
 } from '@ionic/angular';
+import { Capacitor } from '@capacitor/core';
+import { Share } from '@capacitor/share';
+import { environment } from '../../../environments/environment';
 import { ItemEditorComponent } from '../../components/item-editor/item-editor.component';
 import { PriorityStarsComponent } from '../../components/priority-stars.component';
 import { ApiService } from '../../core/api.service';
@@ -76,7 +79,7 @@ export class WishlistDetailPage implements ViewWillEnter {
   readonly wishlist = signal<WishlistWithItems | null>(null);
   readonly shareUrl = computed(() => {
     const wishlist = this.wishlist();
-    return wishlist ? `${window.location.origin}/s/${wishlist.shareToken}` : '';
+    return wishlist ? `${environment.webBaseUrl || window.location.origin}/s/${wishlist.shareToken}` : '';
   });
 
   ionViewWillEnter(): void {
@@ -106,9 +109,18 @@ export class WishlistDetailPage implements ViewWillEnter {
     const wishlist = this.wishlist();
     if (!wishlist) return;
     const url = this.shareUrl();
+    const text = this.i18n.t('detail.shareText', { title: wishlist.title });
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await Share.share({ title: wishlist.title, text, url, dialogTitle: this.i18n.t('detail.share') });
+      } catch {
+        // The user closed the share sheet.
+      }
+      return;
+    }
     if (navigator.share) {
       try {
-        await navigator.share({ title: wishlist.title, text: this.i18n.t('detail.shareText', { title: wishlist.title }), url });
+        await navigator.share({ title: wishlist.title, text, url });
         return;
       } catch (error) {
         if ((error as Error).name === 'AbortError') return;
