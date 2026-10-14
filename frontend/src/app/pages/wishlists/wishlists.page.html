@@ -1,0 +1,57 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>{{ 'wishlists.title' | t }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="i18n.toggleLanguage()" [title]="'common.language' | t">
+        <ion-icon slot="start" name="language-outline" />
+        {{ i18n.otherLanguage().toUpperCase() }}
+      </ion-button>
+      <ion-button (click)="logout()" [title]="'common.logout' | t">
+        <ion-icon slot="icon-only" name="log-out-outline" />
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-refresher slot="fixed" (ionRefresh)="load($event)">
+    <ion-refresher-content />
+  </ion-refresher>
+
+  @if (loading()) {
+    <div class="center"><ion-spinner /></div>
+  } @else if (wishlists().length === 0) {
+    <div class="empty">
+      <ion-icon name="gift-outline" color="medium" />
+      <h2>{{ 'wishlists.greeting' | t: { name: auth.user()?.displayName } }}</h2>
+      <p>{{ 'wishlists.emptyText' | t }}</p>
+      <ion-button (click)="create()">
+        <ion-icon slot="start" name="add" />
+        {{ 'wishlists.createFirst' | t }}
+      </ion-button>
+    </div>
+  } @else {
+    <ion-list>
+      @for (wishlist of wishlists(); track wishlist.id) {
+        <ion-item [routerLink]="['/wishlists', wishlist.id]" detail>
+          <ion-icon slot="start" name="gift-outline" color="primary" />
+          <ion-label>
+            <h2>{{ wishlist.title }}</h2>
+            <p>
+              {{ 'wishlists.wishCount' | t: { count: wishlist.itemCount ?? 0 } }}
+              @if (wishlist.eventDate) {
+                · {{ wishlist.eventDate | localDate }}
+              }
+            </p>
+          </ion-label>
+        </ion-item>
+      }
+    </ion-list>
+  }
+
+  <ion-fab slot="fixed" vertical="bottom" horizontal="end">
+    <ion-fab-button (click)="create()" [title]="'wishlists.new' | t">
+      <ion-icon name="add" />
+    </ion-fab-button>
+  </ion-fab>
+</ion-content>

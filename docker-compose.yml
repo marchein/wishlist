@@ -1,0 +1,31 @@
+# Wishlist stack: "api" (Node backend + SQLite) and "web" (nginx serving the app and proxying /api + /uploads).
+# All settings come from .env next to this file – see .env.example.
+name: wishlist
+
+services:
+  api:
+    image: ${WISHLIST_IMAGE:?set WISHLIST_IMAGE in .env}-api:${WISHLIST_VERSION:-latest}
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Fixed paths inside the container; the data volume holds the database and uploads.
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_FILE: /app/data/wishlist.db
+      UPLOAD_DIR: /app/data/uploads
+    volumes:
+      - data:/app/data
+
+  web:
+    image: ${WISHLIST_IMAGE:?set WISHLIST_IMAGE in .env}-web:${WISHLIST_VERSION:-latest}
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WISHLIST_PORT:-8080}:8080"
+
+volumes:
+  data:

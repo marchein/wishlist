@@ -1,0 +1,78 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>{{ 'app.title' | t }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="i18n.toggleLanguage()" [title]="'common.language' | t">
+        <ion-icon slot="start" name="language-outline" />
+        {{ i18n.otherLanguage().toUpperCase() }}
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="auth">
+    <div class="intro">
+      <ion-icon name="gift-outline" color="primary" />
+      <h1>{{ 'login.headline' | t }}</h1>
+      <p>{{ 'login.intro' | t }}</p>
+    </div>
+
+    <ion-segment [value]="mode()" (ionChange)="setMode($event.detail.value)">
+      <ion-segment-button value="login"><ion-label>{{ 'login.tabLogin' | t }}</ion-label></ion-segment-button>
+      <ion-segment-button value="register"><ion-label>{{ 'login.tabRegister' | t }}</ion-label></ion-segment-button>
+    </ion-segment>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <ion-list lines="none">
+        @if (mode() === 'register') {
+          <ion-input
+            formControlName="displayName"
+            [label]="'common.yourName' | t"
+            labelPlacement="floating"
+            fill="outline"
+            autocomplete="name"
+            [helperText]="'login.nameHelper' | t"
+          />
+        }
+        <ion-input
+          formControlName="email"
+          type="email"
+          [label]="'login.email' | t"
+          labelPlacement="floating"
+          fill="outline"
+          autocomplete="email"
+          [errorText]="'login.emailError' | t"
+        />
+        <ion-input
+          formControlName="password"
+          [type]="showPassword() ? 'text' : 'password'"
+          [label]="'login.password' | t"
+          labelPlacement="floating"
+          fill="outline"
+          [autocomplete]="mode() === 'register' ? 'new-password' : 'current-password'"
+          [errorText]="'login.passwordError' | t"
+        >
+          <ion-button
+            slot="end"
+            fill="clear"
+            shape="round"
+            [attr.aria-label]="(showPassword() ? 'login.hidePassword' : 'login.showPassword') | t"
+            [attr.aria-pressed]="showPassword()"
+            (click)="showPassword.set(!showPassword())"
+          >
+            <ion-icon slot="icon-only" [name]="showPassword() ? 'eye-off-outline' : 'eye-outline'" />
+          </ion-button>
+        </ion-input>
+      </ion-list>
+
+      <ion-button expand="block" type="submit" [disabled]="busy()">
+        @if (busy()) {
+          <ion-spinner name="dots" />
+        } @else {
+          {{ (mode() === 'register' ? 'login.tabRegister' : 'login.tabLogin') | t }}
+        }
+      </ion-button>
+    </form>
+  </div>
+</ion-content>

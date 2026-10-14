@@ -1,0 +1,152 @@
+import { randomUUID } from 'node:crypto';
+import { Router, type Request } from 'express';
+import { optionalAuth } from '../auth.js';
+import type { DB } from '../db.js';
+import { HttpError, notFound } from '../errors.js';
+import {
+  activePurchasedQuantity,
+  now,
+  toItemDto,
+  toPurchaseDto,
+  type ItemRow,
+  type PurchaseRow,
+  type WishlistRow,
+} from '../models.js';
+import { purchaseSchema, revertSchema } from '../validation.js';
+
+/**
+ * Public access to a wishlist through its share token. Anyone with the link (registered or not)
+ * can see what was bought and mark items – except the owner, who never sees purchase data.
+ */
+export function sharedRouter(db: DB): Router {
+  const router = Router();
+  router.use(optionalAuth(db));
+
+  const getWishlist = (token: string | undefined) => {
+    const row = db
+      .prepare(
+        `SELECT w.*, u.display_name AS owner_name
+         FROM wishlists w JOIN users u ON u.id = w.owner_id WHERE w.share_token = ?`,
+      )
+      .get(token) as (WishlistRow & { owner_name: string }) | undefined;
+    if (!row) throw notFound('Wishlist');
+    return row;
+  };
+
+  const assertNotOwner = (req: Request, wishlist: WishlistRow) => {
+    if (req.user?.id === wishlist.owner_id) {
+      throw new HttpError(403, 'OWN_WISHLIST', 'This is your own wishlist – no peeking at what was bought!');
+    }
+  };
+
+  const actorName = (req: Request, name: string | undefined) => {
+    const resolved = name || req.user?.displayName;
+    if (!resolved) throw new HttpError(400, 'NAME_REQUIRED', 'Please tell us your name');
+    return resolved;
+  };
+
+  const getItem = (wishlistId: string, itemId: string | undefined) => {
+    const row = db.prepare('SELECT * FROM items WHERE id = ? AND wishlist_id = ?').get(itemId, wishlistId) as
+      | ItemRow
+      | undefined;
+    if (!row) throw notFound('Item');
+    return row;
+  };
+
+  const purchasesFor = (itemId: string) =>
+    db.prepare('SELECT * FROM purchases WHERE item_id = ? ORDER BY created_at ASC').all(itemId) as PurchaseRow[];
+
+  const toSharedItem = (item: ItemRow, purchases: PurchaseRow[], viewerId: string | undefined) => ({
+    ...toItemDto(item),
+    purchasedQuantity: activePurchasedQuantity(purchases),
+    purchases: purchases.map((p) => toPurchaseDto(p, viewerId)),
+  });
+
+  router.get('/:token', (req, res) => {
+    const wishlist = getWishlist(req.params.token);
+    const isOwner = req.user?.id === wishlist.owner_id;
+    const items = db
+      .prepare('SELECT * FROM items WHERE wishlist_id = ? ORDER BY priority DESC, created_at ASC')
+      .all(wishlist.id) as ItemRow[];
+
+    const header = {
+      id: wishlist.id,
+      title: wishlist.title,
+      description: wishlist.description,
+      eventDate: wishlist.event_date,
+      ownerName: wishlist.owner_name,
+    };
+
+    if (isOwner) {
+      res.json({ wishlist: header, isOwner, items: items.map(toItemDto) });
+      return;
+    }
+
+    const purchases = db
+      .prepare(
+        `SELECT p.* FROM purchases p JOIN items i ON i.id = p.item_id
+         WHERE i.wishlist_id = ? ORDER BY p.created_at ASC`,
+      )
+      .all(wishlist.id) as PurchaseRow[];
+    const byItem = Map.groupBy(purchases, (p) => p.item_id);
+
+    res.json({
+      wishlist: header,
+      isOwner,
+      items: items.map((item) => toSharedItem(item, byItem.get(item.id) ?? [], req.user?.id)),
+    });
+  });
+
+  router.post('/:token/items/:itemId/purchases', (req, res) => {
+    const wishlist = getWishlist(req.params.token);
+    assertNotOwner(req, wishlist);
+    const item = getItem(wishlist.id, req.params.itemId);
+    const input = purchaseSchema.parse(req.body ?? {});
+    const name = actorName(req, input.name);
+
+    // Check + insert atomically so two people can't claim the last remaining piece at once.
+    db.transaction(() => {
+      const remaining = item.quantity - activePurchasedQuantity(purchasesFor(item.id));
+      if (remaining <= 0) throw new HttpError(409, 'ALREADY_BOUGHT', 'This item has already been bought');
+      if (input.quantity > remaining) {
+        throw new HttpError(409, 'NOT_ENOUGH_REMAINING', `Only ${remaining} still needed`, { remaining });
+      }
+
+      db.prepare(
+        `INSERT INTO purchases (id, item_id, quantity, buyer_name, buyer_user_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).run(randomUUID(), item.id, input.quantity, name, req.user?.id ?? null, now());
+    }).immediate();
+
+    res.status(201).json(toSharedItem(item, purchasesFor(item.id), req.user?.id));
+  });
+
+  // Undo a purchase. The record stays (with who reset it) so mistakes or mischief remain visible.
+  router.post('/:token/purchases/:purchaseId/revert', (req, res) => {
+    const wishlist = getWishlist(req.params.token);
+    assertNotOwner(req, wishlist);
+    const input = revertSchema.parse(req.body ?? {});
+    const name = actorName(req, input.name);
+
+    const purchase = db
+      .prepare(
+        `SELECT p.* FROM purchases p JOIN items i ON i.id = p.item_id
+         WHERE p.id = ? AND i.wishlist_id = ?`,
+      )
+      .get(req.params.purchaseId, wishlist.id) as PurchaseRow | undefined;
+    if (!purchase) throw notFound('Purchase');
+
+    const result = db
+      .prepare(
+        `UPDATE purchases SET reverted_at = ?, reverted_by_name = ?, reverted_by_user_id = ?
+         WHERE id = ? AND reverted_at IS NULL`,
+      )
+      .run(now(), name, req.user?.id ?? null, purchase.id);
+    if (result.changes === 0) throw new HttpError(409, 'ALREADY_UNDONE', 'This purchase was already undone');
+
+    const item = getItem(wishlist.id, purchase.item_id);
+    res.json(toSharedItem(item, purchasesFor(item.id), req.user?.id));
+  });
+
+  return router;
+}

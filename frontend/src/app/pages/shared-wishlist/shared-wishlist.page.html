@@ -1,0 +1,183 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>{{ data()?.wishlist?.title ?? ('app.title' | t) }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="i18n.toggleLanguage()" [title]="'common.language' | t">
+        <ion-icon slot="start" name="language-outline" />
+        {{ i18n.otherLanguage().toUpperCase() }}
+      </ion-button>
+      @if (auth.isLoggedIn()) {
+        <ion-button routerLink="/wishlists" [title]="'wishlists.title' | t">
+          <ion-icon slot="icon-only" name="gift-outline" />
+        </ion-button>
+      } @else {
+        <ion-button [routerLink]="['/login']" [queryParams]="{ returnUrl: '/s/' + token() }">
+          <ion-icon slot="start" name="log-in-outline" />
+          {{ 'common.login' | t }}
+        </ion-button>
+      }
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <ion-refresher slot="fixed" (ionRefresh)="load($event)">
+    <ion-refresher-content />
+  </ion-refresher>
+
+  @if (data(); as d) {
+    <div class="ion-padding intro">
+      <h1>{{ 'shared.heading' | t: { name: d.wishlist.ownerName } }}</h1>
+      @if (d.wishlist.eventDate) {
+        <p><strong>{{ d.wishlist.eventDate | localDate: 'longDate' }}</strong></p>
+      }
+      @if (d.wishlist.description) {
+        <p>{{ d.wishlist.description }}</p>
+      }
+    </div>
+
+    @if (d.isOwner) {
+      <ion-card color="light" class="owner-note">
+        <ion-card-content>
+          <ion-icon name="eye-off-outline" />
+          {{ 'shared.ownerNote' | t }}
+        </ion-card-content>
+      </ion-card>
+    }
+
+    <div class="controls ion-padding-horizontal">
+      @if (!d.isOwner) {
+        <ion-segment [value]="filter()" (ionChange)="setFilter($event.detail.value)">
+          <ion-segment-button value="all"><ion-label>{{ 'shared.filter.all' | t }}</ion-label></ion-segment-button>
+          <ion-segment-button value="open"><ion-label>{{ 'shared.filter.open' | t }}</ion-label></ion-segment-button>
+          <ion-segment-button value="bought"><ion-label>{{ 'shared.filter.bought' | t }}</ion-label></ion-segment-button>
+        </ion-segment>
+      }
+      <ion-select
+        class="sort"
+        interface="popover"
+        justify="start"
+        [label]="'shared.sort.label' | t"
+        [value]="sort()"
+        (ionChange)="setSort($event.detail.value)"
+      >
+        @for (option of sortOptions; track option.value) {
+          <ion-select-option [value]="option.value">{{ option.label | t }}</ion-select-option>
+        }
+      </ion-select>
+    </div>
+
+    @for (item of visibleItems(); track item.id) {
+      <ion-card [class.done]="!d.isOwner && isBought(item)">
+        <div class="item">
+          @if (item.imageUrl) {
+            <img class="image" [src]="item.imageUrl | assetUrl" alt="" />
+          }
+          <div class="info">
+            <ion-card-header>
+              <ion-card-title>{{ item.title }}</ion-card-title>
+              <ion-card-subtitle><app-priority-stars [value]="item.priority" [showLabel]="true" /></ion-card-subtitle>
+            </ion-card-header>
+            <ion-card-content>
+              <p class="meta">
+                @if (item.price !== null) {
+                  <strong>{{ item.price | price: item.currency }}</strong>
+                }
+                @if (item.quantity > 1) {
+                  <span>{{ 'shared.wanted' | t: { count: item.quantity } }}</span>
+                }
+              </p>
+              @if (item.notes) {
+                <p class="notes">{{ item.notes }}</p>
+              }
+              @for (link of item.links; track link) {
+                <a class="link" [href]="link" target="_blank" rel="noopener noreferrer nofollow">
+                  <ion-chip outline>
+                    <ion-icon name="open-outline" />
+                    <ion-label>{{ link | hostname }}</ion-label>
+                  </ion-chip>
+                </a>
+              }
+            </ion-card-content>
+          </div>
+        </div>
+
+        @if (!d.isOwner) {
+          <div class="status ion-padding-horizontal">
+            @if (remaining(item) === 0) {
+              <ion-badge color="success">{{ 'shared.status.bought' | t }}</ion-badge>
+            } @else if (item.purchasedQuantity) {
+              <ion-badge color="warning">
+                {{ 'shared.status.partial' | t: { bought: item.purchasedQuantity, total: item.quantity } }}
+              </ion-badge>
+            } @else {
+              <ion-badge color="medium">{{ 'shared.status.open' | t }}</ion-badge>
+            }
+            <ion-button
+              size="small"
+              [disabled]="remaining(item) === 0 || busyItem() === item.id"
+              (click)="markBought(item)"
+            >
+              @if (busyItem() === item.id) {
+                <ion-spinner name="dots" />
+              } @else {
+                <ion-icon slot="start" name="cart-outline" />
+                {{ 'shared.iBoughtThis' | t }}
+              }
+            </ion-button>
+          </div>
+
+          @if (item.purchases?.length) {
+            <ion-accordion-group>
+              <ion-accordion>
+                <ion-item slot="header" lines="none">
+                  <ion-label>{{ 'shared.history' | t: { count: item.purchases!.length } }}</ion-label>
+                </ion-item>
+                <div slot="content" class="history">
+                  @for (purchase of item.purchases; track purchase.id) {
+                    <div class="entry" [class.reverted]="purchase.revertedAt">
+                      <ion-icon name="cart-outline" />
+                      <div>
+                        <strong>{{ purchase.buyerName }}</strong>
+                        @if (purchase.isMine) {
+                          <span class="you">{{ 'shared.you' | t }}</span>
+                        }
+                        {{ 'shared.markedBought' | t: { count: purchase.quantity } }}
+                        <small>{{ purchase.createdAt | localDate: 'dateTime' }}</small>
+                      </div>
+                      @if (!purchase.revertedAt) {
+                        <ion-button size="small" fill="clear" color="medium" [disabled]="busyItem() === item.id" (click)="undo(item, purchase)">
+                          {{ 'shared.undo' | t }}
+                        </ion-button>
+                      }
+                    </div>
+                    @if (purchase.revertedAt) {
+                      <div class="entry undo" [class.suspicious]="isSuspicious(purchase)">
+                        <ion-icon [name]="isSuspicious(purchase) ? 'warning-outline' : 'arrow-undo-outline'" />
+                        <div>
+                          <strong>{{ purchase.revertedByName }}</strong> {{ 'shared.undid' | t }}
+                          <small>{{ purchase.revertedAt | localDate: 'dateTime' }}</small>
+                        </div>
+                      </div>
+                    }
+                  }
+                </div>
+              </ion-accordion>
+            </ion-accordion-group>
+          }
+        }
+      </ion-card>
+    } @empty {
+      <p class="ion-padding ion-text-center empty">
+        {{ (filter() === 'bought' ? 'shared.empty.bought' : filter() === 'open' ? 'shared.empty.open' : 'shared.empty.all') | t }}
+      </p>
+    }
+  } @else if (notFound()) {
+    <div class="ion-padding ion-text-center empty">
+      <h2>{{ 'shared.notFound.title' | t }}</h2>
+      <p>{{ 'shared.notFound.text' | t }}</p>
+    </div>
+  } @else {
+    <div class="ion-padding ion-text-center"><ion-spinner /></div>
+  }
+</ion-content>

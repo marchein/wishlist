@@ -1,0 +1,219 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-button (click)="cancel()">{{ 'common.cancel' | t }}</ion-button>
+    </ion-buttons>
+    <ion-title>{{ (item ? 'editor.editTitle' : 'editor.newTitle') | t }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button strong (click)="save()" [disabled]="saving() || uploading()">{{ 'common.save' | t }}</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-input
+    class="paste"
+    fill="outline"
+    [label]="'editor.paste.label' | t"
+    labelPlacement="stacked"
+    [placeholder]="'editor.paste.placeholder' | t"
+    [helperText]="'editor.paste.helper' | t"
+    [value]="pasted()"
+    (ionInput)="pasted.set($event.detail.value ?? '')"
+    (paste)="onPaste($event)"
+    (keyup.enter)="fetchDetails()"
+  >
+    <ion-button
+      slot="end"
+      fill="clear"
+      [attr.aria-label]="'editor.paste.fetch' | t"
+      [disabled]="scraping() || !pasted().trim()"
+      (click)="fetchDetails()"
+    >
+      @if (scraping()) {
+        <ion-spinner name="crescent" />
+      } @else {
+        <ion-icon slot="icon-only" name="sparkles-outline" />
+      }
+    </ion-button>
+  </ion-input>
+
+  @if (result(); as r) {
+    <ion-card class="result">
+      <ion-card-header>
+        <ion-card-subtitle>
+          <ion-icon [name]="status[r.status].icon" [color]="status[r.status].color" />
+          {{ status[r.status].text | t }}
+        </ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="raw"><strong>{{ 'scrape.youPasted' | t }}</strong> {{ r.input }}</p>
+        @if (r.finalUrl && r.finalUrl !== r.url) {
+          <p class="raw"><strong>{{ 'scrape.leadsTo' | t }}</strong> {{ r.finalUrl }}</p>
+        }
+
+        <ul class="findings">
+          <li>
+            <ion-icon
+              [name]="!r.title ? 'close-circle' : isGuess(r.sources.title) ? 'warning-outline' : 'checkmark-circle'"
+              [color]="!r.title ? 'medium' : isGuess(r.sources.title) ? 'warning' : 'success'"
+            />
+            <div>
+              <strong>{{ 'scrape.field.title' | t }}</strong>
+              @if (r.title) {
+                <span>{{ r.title }}</span><small>{{ sourceText(r.sources.title) }}</small>
+              } @else {
+                <span class="missing">{{ 'scrape.notFound' | t }}</span>
+              }
+            </div>
+            @if (r.title && form.controls.title.value !== r.title) {
+              <ion-button size="small" fill="clear" (click)="use('title')">{{ 'scrape.use' | t }}</ion-button>
+            }
+          </li>
+          <li>
+            <ion-icon [name]="r.image ? 'checkmark-circle' : 'close-circle'" [color]="r.image ? 'success' : 'medium'" />
+            <div>
+              <strong>{{ 'scrape.field.image' | t }}</strong>
+              @if (r.image) {
+                <img class="thumb" [src]="r.image" alt="" /><small>{{ sourceText(r.sources.image) }}</small>
+              } @else {
+                <span class="missing">{{ 'scrape.notFound' | t }}</span>
+              }
+            </div>
+            @if (r.image && form.controls.imageUrl.value !== r.image) {
+              <ion-button size="small" fill="clear" (click)="use('image')">{{ 'scrape.use' | t }}</ion-button>
+            }
+          </li>
+          <li>
+            <ion-icon [name]="r.price !== null ? 'checkmark-circle' : 'close-circle'" [color]="r.price !== null ? 'success' : 'medium'" />
+            <div>
+              <strong>{{ 'scrape.field.price' | t }}</strong>
+              @if (r.price !== null) {
+                <span>{{ r.price | price: r.currency }}</span><small>{{ sourceText(r.sources.price) }}</small>
+              } @else {
+                <span class="missing">{{ 'scrape.notFound' | t }}</span>
+              }
+            </div>
+            @if (r.price !== null && form.controls.price.value !== r.price) {
+              <ion-button size="small" fill="clear" (click)="use('price')">{{ 'scrape.use' | t }}</ion-button>
+            }
+          </li>
+        </ul>
+
+        @for (message of r.messages; track $index) {
+          <p class="message"><ion-icon name="information-circle-outline" /> {{ messageText(message) }}</p>
+        }
+        @if (r.status !== 'ok' && r.url) {
+          <p class="message">
+            {{ 'scrape.fillRest' | t }}
+            <a [href]="r.url" target="_blank" rel="noopener noreferrer">{{ 'scrape.openPage' | t }}</a>
+          </p>
+        }
+      </ion-card-content>
+    </ion-card>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="save()">
+    <ion-input
+      formControlName="title"
+      [label]="'editor.title' | t"
+      labelPlacement="stacked"
+      fill="outline"
+      [counter]="true"
+      maxlength="300"
+      [errorText]="'editor.titleError' | t"
+    />
+
+    <div class="image-row">
+      <div class="preview">
+        @if (form.controls.imageUrl.value && !imageFailed()) {
+          <img [src]="form.controls.imageUrl.value | assetUrl" alt="" (error)="imageFailed.set(true)" />
+        } @else {
+          <ion-icon name="image-outline" color="medium" />
+        }
+      </div>
+      <div class="image-fields">
+        <ion-input formControlName="imageUrl" [label]="'editor.picture' | t" labelPlacement="stacked" fill="outline" placeholder="https://…" />
+        <div>
+          <ion-button size="small" fill="outline" [disabled]="uploading()" (click)="fileInput.click()">
+            @if (uploading()) {
+              <ion-spinner slot="start" name="dots" />
+            } @else {
+              <ion-icon slot="start" name="cloud-upload-outline" />
+            }
+            {{ 'editor.upload' | t }}
+          </ion-button>
+          @if (form.controls.imageUrl.value) {
+            <ion-button size="small" fill="clear" color="medium" (click)="removeImage()">{{ 'editor.remove' | t }}</ion-button>
+          }
+        </div>
+        <input #fileInput type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden (change)="onFileSelected($event)" />
+      </div>
+    </div>
+    @if (imageFailed()) {
+      <ion-note color="warning">{{ 'editor.imageFailed' | t }}</ion-note>
+    }
+
+    <div class="row">
+      <ion-input formControlName="price" type="number" min="0" step="0.01" [label]="'editor.price' | t" labelPlacement="stacked" fill="outline" />
+      <ion-input class="currency" formControlName="currency" [label]="'editor.currency' | t" labelPlacement="stacked" fill="outline" maxlength="3" />
+      <ion-input class="quantity" formControlName="quantity" type="number" min="1" [label]="'editor.quantity' | t" labelPlacement="stacked" fill="outline" />
+    </div>
+
+    <div class="priority">
+      <ion-label>{{ 'editor.priority' | t }}</ion-label>
+      <app-priority-stars
+        [value]="form.controls.priority.value"
+        [editable]="true"
+        [showLabel]="true"
+        (valueChange)="form.controls.priority.setValue($event)"
+      />
+    </div>
+
+    <ion-list lines="full">
+      <ion-list-header><ion-label>{{ 'editor.links' | t }}</ion-label></ion-list-header>
+      @for (link of links(); track link; let i = $index) {
+        <ion-item>
+          <ion-icon slot="start" name="link-outline" />
+          <ion-label class="ion-text-nowrap">
+            <a [href]="link" target="_blank" rel="noopener noreferrer">{{ link | hostname }}</a>
+            <p>{{ link }}</p>
+          </ion-label>
+          <ion-button slot="end" fill="clear" color="medium" [attr.aria-label]="'editor.removeLink' | t" (click)="removeLink(i)">
+            <ion-icon slot="icon-only" name="close" />
+          </ion-button>
+        </ion-item>
+      }
+      <ion-item>
+        <ion-input
+          [attr.aria-label]="'editor.addLinkPlaceholder' | t"
+          [placeholder]="'editor.addLinkPlaceholder' | t"
+          [value]="newLink()"
+          (ionInput)="newLink.set($event.detail.value ?? '')"
+          (keydown.enter)="$event.preventDefault(); addLink()"
+        />
+        <ion-button slot="end" fill="clear" [attr.aria-label]="'editor.addLink' | t" [disabled]="!newLink().trim()" (click)="addLink()">
+          <ion-icon slot="icon-only" name="add-circle-outline" />
+        </ion-button>
+      </ion-item>
+    </ion-list>
+
+    <ion-textarea
+      formControlName="notes"
+      [label]="'editor.notes' | t"
+      labelPlacement="stacked"
+      fill="outline"
+      [placeholder]="'editor.notesPlaceholder' | t"
+      [autoGrow]="true"
+      [counter]="true"
+      maxlength="2000"
+    />
+  </form>
+
+  @if (item) {
+    <ion-button class="delete" expand="block" fill="clear" color="danger" (click)="delete()">
+      <ion-icon slot="start" name="trash-outline" />
+      {{ 'editor.deleteWish' | t }}
+    </ion-button>
+  }
+</ion-content>

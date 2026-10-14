@@ -1,0 +1,114 @@
+.intro h1 {
+  margin-top: 0;
+}
+
+.owner-note ion-card-content {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin-bottom: 8px;
+
+  ion-segment {
+    flex: 1 1 320px;
+    max-width: 480px;
+  }
+
+  .sort {
+    flex: 0 0 auto;
+    width: auto;
+    margin-left: auto;
+  }
+}
+
+ion-card.done .item {
+  opacity: 0.55;
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+
+  .image {
+    width: 140px;
+    height: 140px;
+    margin: 16px 0 0 16px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .info {
+    flex: 1;
+    min-width: 220px;
+  }
+}
+
+.meta {
+  display: flex;
+  gap: 12px;
+}
+
+.notes {
+  white-space: pre-line;
+  margin: 8px 0;
+}
+
+.link {
+  text-decoration: none;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+}
+
+.history {
+  padding: 0 16px 12px;
+  font-size: 0.9em;
+
+  .entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+
+    div {
+      flex: 1;
+    }
+
+    small {
+      display: block;
+      color: var(--ion-color-medium);
+    }
+  }
+
+  .reverted {
+    text-decoration: line-through;
+    opacity: 0.7;
+  }
+
+  .undo {
+    padding-left: 24px;
+  }
+
+  .suspicious {
+    color: var(--ion-color-warning-shade);
+  }
+
+  .you {
+    color: var(--ion-color-medium);
+  }
+}
+
+.empty {
+  color: var(--ion-color-medium);
+}
