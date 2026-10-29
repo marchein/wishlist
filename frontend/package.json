@@ -1,8 +1,8 @@
 {
   "name": "frontend",
-  "version": "0.0.1",
-  "author": "Ionic Framework",
-  "homepage": "https://ionicframework.com/",
+  "version": "1.0.3",
+  "author": "Marc Hein",
+  "homepage": "https://hein.cx/",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -15,11 +15,11 @@
   },
   "private": true,
   "dependencies": {
-    "@angular/common": "22.1.7",
-    "@angular/compiler": "22.1.7",
-    "@angular/core": "22.1.7",
-    "@angular/forms": "22.1.7",
-    "@angular/platform-browser": "22.1.7",
+    "@angular/common": "22.2.3",
+    "@angular/compiler": "22.2.3",
+    "@angular/core": "22.2.3",
+    "@angular/forms": "22.2.3",
+    "@angular/platform-browser": "22.2.3",
     "@angular/router": "22.2.3",
     "@capacitor/app": "8.1.2",
     "@capacitor/core": "8.5.3",
@@ -36,8 +36,8 @@
   "devDependencies": {
     "@angular/build": "22.2.4",
     "@angular/cli": "22.2.4",
-    "@angular/compiler-cli": "22.1.7",
-    "@angular/language-service": "22.1.7",
+    "@angular/compiler-cli": "22.2.3",
+    "@angular/language-service": "22.2.3",
     "@capacitor/cli": "8.5.3",
     "@ionic/angular-toolkit": "^13.0.0",
     "angular-eslint": "22.5.0",
@@ -47,5 +47,5 @@
     "typescript-eslint": "^8.61.0",
     "vitest": "~4.1.12"
   },
-  "description": "An Ionic project"
+  "description": "Frontend for the wishlist application"
 }
